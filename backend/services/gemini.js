@@ -28,60 +28,85 @@ function cleanJsonString(str) {
  * Generate Resume bullet points using X-Y-Z formula and ATS Keywords
  */
 export async function generateResume(profile) {
-  const { personalInfo, qualification, targetJob, technicalSkills } = profile;
-  const jobTitle = targetJob.jobTitle || "Software Engineer";
-  const expLevel = targetJob.experienceLevel || "Mid";
-  const languages = (technicalSkills.languages || []).join(', ');
-  const frameworks = (technicalSkills.frameworks || []).join(', ');
-  const databases = (technicalSkills.databases || []).join(', ');
-  const tools = (technicalSkills.toolsCloud || []).join(', ');
+  const { personalInfo, qualification, targetJob, technicalSkills,
+          workExperience = [], projects = [], certifications = [], achievements = [] } = profile;
+
+  const jobTitle  = targetJob.jobTitle       || 'Software Engineer';
+  const expLevel  = targetJob.experienceLevel || 'Mid';
+  const languages = (technicalSkills.languages  || []).join(', ');
+  const frameworks= (technicalSkills.frameworks || []).join(', ');
+  const databases = (technicalSkills.databases  || []).join(', ');
+  const tools     = (technicalSkills.toolsCloud || []).join(', ');
+
+  // Build experience context string for AI
+  const expContext = workExperience.length > 0
+    ? workExperience.map(e =>
+        `- ${e.role || jobTitle} at ${e.company} (${e.startDate || ''} – ${e.isCurrent ? 'Present' : e.endDate || ''})${e.rawText ? ': ' + e.rawText : ''}${e.bullets?.length ? '\n  Bullets: ' + e.bullets.join('; ') : ''}`
+      ).join('\n')
+    : '(No prior work experience provided — generate intern/fresher-level bullets)';
+
+  // Build project context
+  const projContext = projects.length > 0
+    ? projects.map(p =>
+        `- ${p.name}${p.techStack?.length ? ' [' + p.techStack.join(', ') + ']' : ''}: ${p.description || 'No description'}`
+      ).join('\n')
+    : '(No projects provided — generate relevant sample project bullets for ' + jobTitle + ')';
+
+  // Certifications & achievements
+  const certContext = certifications.length > 0
+    ? certifications.map(c => `- ${c.name}${c.issuer ? ' by ' + c.issuer : ''}`).join('\n') : '';
+  const achContext  = achievements.length > 0
+    ? achievements.map(a => `- ${a.text}`).join('\n') : '';
 
   const systemPrompt = `You are an expert ATS (Applicant Tracking System) recruiter and Technical Resume Writer.
 Analyze the following user profile data:
-- Personal Info: Name "${personalInfo.fullName}", Email "${personalInfo.email}", GitHub "${personalInfo.github}"
-- Highest Education: "${qualification.highestDegree}" from "${qualification.institution}" (Grad: ${qualification.graduationYear}, CGPA: ${qualification.cgpa})
+- Name: "${personalInfo.fullName}", Email: "${personalInfo.email}", GitHub: "${personalInfo.github || 'N/A'}"
+- Education: "${qualification.highestDegree}" from "${qualification.institution}" (${qualification.graduationYear}, CGPA: ${qualification.cgpa || 'N/A'})
 - Target Job: "${jobTitle}" (${expLevel} level)
 - Technical Skills: Languages [${languages}], Frameworks [${frameworks}], Databases [${databases}], Tools/Cloud [${tools}]
+- Work Experience:
+${expContext}
+- Projects:
+${projContext}
+${certContext ? '- Certifications:\n' + certContext : ''}
+${achContext  ? '- Achievements:\n'    + achContext  : ''}
 
 Tasks:
-1. Identify 6 standard ATS keywords for the target role: "${jobTitle}".
-2. Check which keywords are present in the profile. Split them into 'atsKeywordsMatched' and 'atsKeywordsMissing'.
-3. Write a professional, high-impact 3-sentence summary targeting the job level (${expLevel}).
-4. Rephrase their projects/experiences into exactly 4 bullet points for experience and 4 bullet points for projects using the Google X-Y-Z Formula:
+1. Identify 8 standard ATS keywords critical for the target role: "${jobTitle}".
+2. Check which keywords match the profile. Split into 'atsKeywordsMatched' and 'atsKeywordsMissing'.
+3. Write a powerful, high-impact 3-sentence professional summary targeting ${expLevel} level for "${jobTitle}".
+4. Generate exactly 4 achievement bullet points for experience using the Google X-Y-Z formula:
    "Accomplished [X] as measured by [Y], by doing [Z]"
-   (e.g., "Reduced database query latency by 45% as measured by APM tooling, by implementing Redis caching and indexing key fields.")
-5. Output the response in valid, structured JSON formatting containing:
+   Use the ACTUAL work experience and projects from above. If no experience, generate realistic intern/fresher level bullets.
+5. Generate exactly 4 project bullet points using real project names and tech stacks from the profile.
+6. Format skills as a readable string: "Languages: X, Y | Frameworks: A, B | Databases: C | Tools: D, E"
+7. Output ONLY valid JSON with no markdown:
    {
-     "atsScore": number (between 50 and 98, representing their ATS match score),
+     "atsScore": number (50–98),
      "atsKeywordsMatched": [string],
      "atsKeywordsMissing": [string],
      "summary": string,
      "experienceBullets": [string],
      "projectsBullets": [string],
      "skillsFormatted": string
-   }
-Ensure the output is ONLY valid JSON. Do not include markdown wraps or anything else.`;
+   }`;
 
   if (genAI) {
     try {
-      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+      const model  = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
       const result = await model.generateContent({
         contents: [{ role: 'user', parts: [{ text: systemPrompt }] }],
-        generationConfig: {
-          responseMimeType: "application/json"
-        }
+        generationConfig: { responseMimeType: 'application/json' }
       });
-      const text = result.response.text();
-      return JSON.parse(cleanJsonString(text));
+      return JSON.parse(cleanJsonString(result.response.text()));
     } catch (err) {
-      console.error("Gemini Resume Generation Error:", err);
-      // Fallback to local generator
+      console.error('Gemini Resume Generation Error:', err);
     }
   }
 
-  // Fallback Rule-Based Generation Engine
   return generateResumeFallback(profile, jobTitle, expLevel);
 }
+
 
 /**
  * Generate Interview Round Preparation Content
@@ -237,87 +262,130 @@ function generateResumeFallback(profile, jobTitle, expLevel) {
 function generateInterviewRoundFallback(jobTitle, expLevel, skillsList, roundNumber, roundName) {
   const roundMaterials = {
     1: {
-      studyConcepts: ["The STAR Method (Situation, Task, Action, Result)", "Developing a 60-Second Elevator Pitch", "Highlighting Technical Architecture Trade-offs"],
+      studyConcepts: [
+        "The STAR Method — Situation, Task, Action, Result",
+        "60-Second Elevator Pitch: Present → Past → Future Framework",
+        "Technical Architecture Trade-off Articulation",
+        "Project Walkthrough: Impact-First Storytelling"
+      ],
       questions: [
-        { questionId: "r1_q1", questionText: "Tell me about yourself and walk me through your most complex project, highlighting the system architecture decisions." },
-        { questionId: "r1_q2", questionText: "Why did you choose your current tech stack for your primary project? What were the alternative choices and why were they rejected?" },
-        { questionId: "r1_q3", questionText: "Describe a scenario where you faced a significant performance bottleneck in your project. How did you identify it and what was your fix?" }
+        { questionId: "r1_q1", questionText: "Tell me about yourself. Walk me through your background, your most impactful project, and why you're a strong fit for this role." },
+        { questionId: "r1_q2", questionText: "Why did you choose your current tech stack? What alternatives did you evaluate and what trade-offs led to your decision?" },
+        { questionId: "r1_q3", questionText: "Describe a time you faced a major performance bottleneck in a project. How did you diagnose it, what fix did you implement, and what was the measurable improvement?" },
+        { questionId: "r1_q4", questionText: "Tell me about a project that failed or was significantly delayed. What went wrong, what did you learn, and how have you applied that learning since?" }
       ],
       resourceLinks: [
-        { label: "FAANG Resume Pitch Guidelines - Tell Me About Yourself Video", url: "https://www.youtube.com/watch?v=1mHjMNr8uFo", type: "video" },
-        { label: "The STAR Method for Technical Behavioral Interviews", url: "https://www.levels.fyi/blog/star-method-behavioral-interview.html", type: "reading" },
-        { label: "Google Project Walkthrough Strategy Guide", url: "https://github.com/jwasham/coding-interview-university", type: "reading" }
+        { label: "Jeff Su — Tell Me About Yourself (Present-Past-Future Formula)", url: "https://www.youtube.com/watch?v=es7XtrloDIQ", type: "video" },
+        { label: "CS Dojo — How to Answer 'Tell Me About Yourself'", url: "https://www.youtube.com/watch?v=kayOhGRcNt0", type: "video" },
+        { label: "STAR Method Guide for Technical Behavioral Interviews — Levels.fyi", url: "https://www.levels.fyi/blog/star-method-behavioral-interview.html", type: "reading" },
+        { label: "Coding Interview University — Project Walkthrough Strategy", url: "https://github.com/jwasham/coding-interview-university", type: "reading" }
       ]
     },
     2: {
-      studyConcepts: ["Big O Notation and Space-Time Complexity", "Arrays, HashMaps, and Two-Pointer Algorithms", "Backtracking and Dynamic Programming Fundamentals"],
+      studyConcepts: [
+        "Big O Notation — Time & Space Complexity Analysis",
+        "Core Patterns: Two-Pointers, Sliding Window, HashMaps",
+        "Graph Algorithms: BFS, DFS, Dijkstra",
+        "Dynamic Programming: Memoization vs Tabulation"
+      ],
       questions: [
-        { questionId: "r2_q1", questionText: "Given an array of integers, return indices of the two numbers such that they add up to a specific target. Explain the time and space complexity." },
-        { questionId: "r2_q2", questionText: "How would you design a rate limiter algorithm (e.g. token bucket or sliding window log) for an API? Write the pseudocode." },
-        { questionId: "r2_q3", questionText: "Describe the differences between DFS and BFS. In what scenarios would DFS be preferred over BFS?" }
+        { questionId: "r2_q1", questionText: "Given an array of integers, find two indices that sum to a target value. Explain your approach, time complexity, and edge cases. (LeetCode #1 — Two Sum)" },
+        { questionId: "r2_q2", questionText: "Design a rate limiter for an API that allows at most 100 requests per minute per user. Describe the algorithm (token bucket vs sliding window), data structures, and pseudocode." },
+        { questionId: "r2_q3", questionText: "Explain the difference between BFS and DFS. When would you use each? Implement BFS level-order traversal on a binary tree." },
+        { questionId: "r2_q4", questionText: "Given a string, find the length of the longest substring without repeating characters. What is the optimal approach and its time/space complexity? (LeetCode #3)" }
       ],
       resourceLinks: [
-        { label: "LeetCode Patterns & Algorithm Video Playlists (NeetCode)", url: "https://www.youtube.com/watch?v=RBSGKlAOiM0", type: "video" },
-        { label: "Big-O Cheat Sheet for Algorithm Runtimes", url: "https://www.bigocheatsheet.com/", type: "reading" },
-        { label: "Curated 75 LeetCode Questions Guide", url: "https://leetcode.com/discuss/general-discussion/460599/blind-75-leetcode-questions-by-a-facebook-engineer", type: "reading" }
+        { label: "NeetCode — Two Sum (HashMap Approach, O(n))", url: "https://www.youtube.com/watch?v=KLlXCFG5TnA", type: "video" },
+        { label: "NeetCode 150 — Complete DSA Roadmap & All Patterns", url: "https://neetcode.io/roadmap", type: "reading" },
+        { label: "Big-O Cheat Sheet — All Algorithm Complexities at a Glance", url: "https://www.bigocheatsheet.com/", type: "reading" },
+        { label: "Back To Back SWE — Dynamic Programming Patterns", url: "https://www.youtube.com/watch?v=oBt53YbR9Kk", type: "video" }
       ]
     },
     3: {
-      studyConcepts: ["Execution Context and Call Stack", "Memory Allocations & Garbage Collection Algorithms", "Asynchronous Event Loop & Concurrency Models"],
+      studyConcepts: [
+        "JS Event Loop, Call Stack & Microtask Queue",
+        "Closures, Lexical Scope & Memory Leak Prevention",
+        "OOP vs FP: Prototypal Inheritance, Composition",
+        "Async Patterns: Promises, async/await, error handling"
+      ],
       questions: [
-        { questionId: "r3_q1", questionText: `Explain JavaScript closures. How do closures utilize memory, and how can they lead to memory leaks?` },
-        { questionId: "r3_q2", questionText: "What is the difference between compiler execution and runtime execution? Walk me through how code runs on a typical VM." },
-        { questionId: "r3_q3", questionText: "Explain the prototype chain or object-oriented structures in your primary programming language. How is inheritance resolved?" }
+        { questionId: "r3_q1", questionText: "Explain JavaScript closures in depth. How do they interact with memory, what are common memory leak patterns they cause, and how do you prevent them?" },
+        { questionId: "r3_q2", questionText: "Describe the JavaScript Event Loop and microtask queue. What is the output order of: setTimeout(fn, 0), Promise.resolve().then(fn), and synchronous code? Explain why." },
+        { questionId: "r3_q3", questionText: "Compare Object-Oriented Programming and Functional Programming paradigms. Give a real-world scenario where each is preferable and explain the trade-offs." },
+        { questionId: "r3_q4", questionText: "Explain how async/await works under the hood. How does it differ from raw Promises? What happens when you forget to await a Promise?" }
       ],
       resourceLinks: [
-        { label: "Under the Hood: JS Event Loop Video Tutorial", url: "https://www.youtube.com/watch?v=8aGhZQkoFbQ", type: "video" },
-        { label: "JavaScript Deep Dive Fundamentals (MDN)", url: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide", type: "reading" },
-        { label: "Memory Management & Garbage Collection Primer", url: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Memory_management", type: "reading" }
+        { label: "Philip Roberts — What the heck is the event loop? (JSConf EU Classic)", url: "https://www.youtube.com/watch?v=8aGhZQkoFbQ", type: "video" },
+        { label: "Fireship — JavaScript Closures Explained in 100 Seconds", url: "https://www.youtube.com/watch?v=vKJpN5FAeF4", type: "video" },
+        { label: "MDN — JavaScript Guide (Closures, Prototypes, Async)", url: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide", type: "reading" },
+        { label: "MDN — Memory Management & Garbage Collection", url: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Memory_management", type: "reading" }
       ]
     },
     4: {
-      studyConcepts: ["Framework Component Lifecycle & Reconciliation", "State Management & Store Hydration", "Database Schema Optimization and Indexes"],
+      studyConcepts: [
+        "React Fiber Reconciliation & Virtual DOM Diffing",
+        "State Management Patterns: Context, Redux, Zustand",
+        "Database Indexing, Query Optimization & N+1 Problem",
+        "API Security: JWT, CORS, CSRF, Rate Limiting"
+      ],
       questions: [
-        { questionId: "r4_q1", questionText: "How does the Virtual DOM reconciliation algorithm work in React? What triggers a full re-render, and how do you optimize it?" },
-        { questionId: "r4_q2", questionText: "Compare SQL joins and indexing vs NoSQL denormalization. How would you optimize query retrieval speed for millions of records?" },
-        { questionId: "r4_q3", questionText: "How would you secure your REST/GraphQL API endpoints? Explain CORS, JWT validation, CSRF, and SQL Injection prevention." }
+        { questionId: "r4_q1", questionText: "Explain how React's reconciliation algorithm (Fiber) works. What triggers a re-render vs a re-paint? How do you use useMemo, useCallback, and React.memo to prevent unnecessary renders?" },
+        { questionId: "r4_q2", questionText: "Compare SQL indexing (B-Tree, Hash) vs NoSQL denormalization strategies. How would you optimize a query that takes 8 seconds on a 10M-row table?" },
+        { questionId: "r4_q3", questionText: "Explain how to secure a REST API end-to-end. Cover: JWT validation, CORS headers, rate limiting, input sanitization, and OWASP Top 10 vulnerabilities." },
+        { questionId: "r4_q4", questionText: "What is the N+1 query problem in ORMs? Demonstrate a scenario where it occurs and show how to fix it using eager loading or DataLoader batching." }
       ],
       resourceLinks: [
-        { label: "React Fiber Architecture Deep-Dive Video", url: "https://www.youtube.com/watch?v=i793N65aUXk", type: "video" },
-        { label: "MNC Database Indexing best practices", url: "https://use-the-index-luke.com/", type: "reading" },
-        { label: "OWASP API Security Top 10 Guidelines", url: "https://owasp.org/www-project-api-security/", type: "reading" }
+        { label: "Theo (t3.gg) — React Re-renders and Optimization Deep-Dive", url: "https://www.youtube.com/watch?v=YbNzQHVvdh4", type: "video" },
+        { label: "Fireship — React Fiber Explained in 100 Seconds", url: "https://www.youtube.com/watch?v=0ympFIgAvFQ", type: "video" },
+        { label: "Use The Index, Luke — SQL Indexing & Performance (Free Book)", url: "https://use-the-index-luke.com/", type: "reading" },
+        { label: "OWASP API Security Top 10 — Complete Guidelines", url: "https://owasp.org/www-project-api-security/", type: "reading" }
       ]
     },
     5: {
-      studyConcepts: ["Horizontal vs Vertical Scaling and Load Balancers", "Caching Strategies (Write-Through, Cache-Aside) and CDN Policies", "Database Sharding, Replication, and CAP Theorem"],
+      studyConcepts: [
+        "Horizontal & Vertical Scaling, Load Balancers, CDNs",
+        "Database Sharding, Replication & CAP Theorem",
+        "Caching Strategies: Write-Through, Cache-Aside, LRU",
+        "Microservices vs Monolith: Trade-offs & Migration"
+      ],
       questions: [
-        { questionId: "r5_q1", questionText: "Design a URL shortening service (like Bitly) to handle 10,000 requests per second. Walk me through the database schemas, API, and scaling plan." },
-        { questionId: "r5_q2", questionText: "What is the CAP Theorem? If you are designing a globally distributed bank ledger, would you prioritize consistency or availability? Why?" },
-        { questionId: "r5_q3", questionText: "Explain how WebSockets differ from HTTP Polling. How would you design a real-time chat service for 5 million active users?" }
+        { questionId: "r5_q1", questionText: "Design a URL shortening service (like Bitly) to handle 100,000 redirects/second globally. Cover: API design, hashing strategy, database schema, caching, and global CDN plan." },
+        { questionId: "r5_q2", questionText: "Explain the CAP Theorem with real examples. If you're designing a globally distributed payment ledger (like Stripe), do you prioritize Consistency or Availability? Justify your answer with architecture decisions." },
+        { questionId: "r5_q3", questionText: "Design a real-time chat system (like WhatsApp) for 100 million daily active users. Cover: WebSocket connections, message delivery guarantees, read receipts, storage, and fan-out strategies." },
+        { questionId: "r5_q4", questionText: "How would you design a distributed rate limiter that works across multiple API gateway instances? Compare fixed window, sliding window log, and token bucket algorithms." }
       ],
       resourceLinks: [
-        { label: "System Design for Beginners Video Playlist", url: "https://www.youtube.com/watch?v=i53Gi_K39mc", type: "video" },
-        { label: "The System Design Primer (GitHub Repository)", url: "https://github.com/donnemartin/system-design-primer", type: "reading" },
-        { label: "Amazon Architecture & Scalability whitepapers", url: "https://aws.amazon.com/architecture/", type: "reading" }
+        { label: "ByteByteGo — System Design Interview Concepts (Visual Overview)", url: "https://www.youtube.com/watch?v=i7twT3x5yv8", type: "video" },
+        { label: "Gaurav Sen — Consistent Hashing Explained (What & Where Used)", url: "https://www.youtube.com/watch?v=K0Ta65OqQkY", type: "video" },
+        { label: "System Design Primer — GitHub (donnemartin, 260k+ stars)", url: "https://github.com/donnemartin/system-design-primer", type: "reading" },
+        { label: "AWS Architecture Center — Scalability & High Availability Patterns", url: "https://aws.amazon.com/architecture/", type: "reading" }
       ]
     },
     6: {
-      studyConcepts: ["Responding to Conflict and Project Failures", "Aligning with Tech Leadership Principles", "Navigating Project Ambiguity and Priority Shifts"],
+      studyConcepts: [
+        "STAR Method — Conflict, Failure & Ambiguity Scenarios",
+        "Amazon's 16 Leadership Principles (applies to all MNCs)",
+        "Technical Decision-Making Under Pressure",
+        "Giving & Receiving Feedback — Growth Mindset Signals"
+      ],
       questions: [
-        { questionId: "r6_q1", questionText: "Tell me about a time you had a strong disagreement with a technical decision made by a peer or manager. How did you resolve it?" },
-        { questionId: "r6_q2", questionText: "Describe your most significant technical failure. What did you learn and how did you adapt in subsequent projects?" },
-        { questionId: "r6_q3", questionText: "How do you handle scope creep or shifting requirements mid-sprint while preserving high software quality?" }
+        { questionId: "r6_q1", questionText: "Tell me about a time you had a serious technical disagreement with a colleague or manager. How did you handle it, and what was the outcome? (Use STAR format)" },
+        { questionId: "r6_q2", questionText: "Describe your most significant technical failure or a project that went badly wrong. What specifically went wrong, what was your role, and what lasting changes did you make to your process?" },
+        { questionId: "r6_q3", questionText: "You're mid-sprint and the product manager wants to add a significant new feature that will break your current architecture. How do you handle this? Walk me through your decision-making process." },
+        { questionId: "r6_q4", questionText: "Why do you want to join this company specifically? What do you know about our engineering culture, and how does your background align with where we're headed?" }
       ],
       resourceLinks: [
-        { label: "FAANG Behavioral (STAR Method) Preparation Video", url: "https://www.youtube.com/watch?v=1mHjMNr8uFo", type: "video" },
-        { label: "Amazon's 16 Leadership Principles Explained", url: "https://www.amazon.jobs/content/en/our-workplace/leadership-principles", type: "reading" },
-        { label: "The STAR Method for Behavioral Interviews", url: "https://www.levels.fyi/blog/star-method-behavioral-interview.html", type: "reading" }
+        { label: "Jeff Su — STAR Method: How to Answer ANY Behavioral Question", url: "https://www.youtube.com/watch?v=Ej4qX7O1O38", type: "video" },
+        { label: "TechLead — Why Most Software Engineers Fail Behavioral Interviews", url: "https://www.youtube.com/watch?v=0Z9RW_hhUT4", type: "video" },
+        { label: "Amazon Leadership Principles — Official Deep-Dive Guide", url: "https://www.amazon.jobs/content/en/our-workplace/leadership-principles", type: "reading" },
+        { label: "Levels.fyi — STAR Method for Technical Behavioral Interviews", url: "https://www.levels.fyi/blog/star-method-behavioral-interview.html", type: "reading" }
       ]
     }
   };
 
   return roundMaterials[roundNumber] || roundMaterials[1];
 }
+
 
 function evaluateInterviewAnswerFallback(questionText, userAnswer, jobTitle) {
   const ansLower = userAnswer.toLowerCase().trim();

@@ -4,10 +4,30 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>frontend</title>
+    <meta name="description" content="TechTrack AI — MNC Interview Preparation Suite with ATS Resume Builder, 6-Round Mock Interview Guide, and AI-powered career tools." />
+    <meta name="keywords" content="interview preparation, ATS resume builder, MNC interview guide, AI career tools" />
+    <title>TechTrack AI — MNC Interview & Resume Suite</title>
+    <!-- Anti-flash dark mode: apply theme class BEFORE first paint -->
+    <script>
+      (function () {
+        try {
+          var saved = localStorage.getItem('theme');
+          var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+          if (saved === 'dark' || (!saved && prefersDark)) {
+            document.documentElement.classList.add('dark');
+          } else {
+            document.documentElement.classList.remove('dark');
+          }
+        } catch (e) {}
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
+    <!-- html2pdf.js for real PDF file generation (no npm install needed) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"
+            integrity="sha512-GsLlZN/3F2ErC5ifS5QtgpiJtWd43JWSuIgh7mbzZ8zBps+3OccywijUia/erZwIaBx5u4dqLrzqzHPe9L/fA=="
+            crossorigin="anonymous" referrerpolicy="no-referrer"></script>
   </body>
 </html>

@@ -24,17 +24,49 @@
   @apply bg-zinc-200 dark:bg-zinc-800 rounded-full hover:bg-zinc-300 dark:hover:bg-zinc-700;
 }
 
-/* Printing styling to export perfect ATS Resume */
+/* Printing — clean A4 layout for ATS resume export */
 @media print {
   body {
     background: white !important;
     color: black !important;
+    font-size: 11pt;
   }
+
+  /* Hide all app chrome */
   .no-print {
     display: none !important;
   }
+
+  /* Remove card decorations */
   .print-shadow-none {
     box-shadow: none !important;
     border: none !important;
+    border-radius: 0 !important;
+    margin: 0 !important;
+    max-width: 100% !important;
+    padding: 0.5cm 1cm !important;
+  }
+
+  /* Show print-only content (plain-text skill rows) */
+  .print\:block {
+    display: block !important;
+  }
+
+  /* Hide screen-only content (skill pill badges) */
+  .no-print,
+  [class*="no-print"] {
+    display: none !important;
+  }
+
+  /* Set page size */
+  @page {
+    size: A4 portrait;
+    margin: 1cm;
+  }
+
+  /* Prevent page breaks inside sections */
+  .mb-5 {
+    page-break-inside: avoid;
   }
 }
+

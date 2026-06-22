@@ -1,32 +1,23 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { Sun, Moon } from 'lucide-react';
+import { useTheme } from '../context/ThemeContext';
 
 export default function ThemeToggle() {
-  const [darkMode, setDarkMode] = useState(() => {
-    // Check local storage or system preference
-    const saved = localStorage.getItem('theme');
-    if (saved) return saved === 'dark';
-    return window.matchMedia('(prefers-color-scheme: dark)').matches;
-  });
-
-  useEffect(() => {
-    const root = window.document.documentElement;
-    if (darkMode) {
-      root.classList.add('dark');
-      localStorage.setItem('theme', 'dark');
-    } else {
-      root.classList.remove('dark');
-      localStorage.setItem('theme', 'light');
-    }
-  }, [darkMode]);
+  const { darkMode, toggleTheme } = useTheme();
 
   return (
     <button
-      onClick={() => setDarkMode(!darkMode)}
+      onClick={toggleTheme}
+      id="theme-toggle-btn"
       className="p-2 bg-white dark:bg-[#1e1e24] border border-zinc-200 dark:border-zinc-800 rounded-lg text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors shadow-sm focus:outline-none"
-      title={darkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
+      title={darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+      aria-label={darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
     >
-      {darkMode ? <Sun size={18} className="text-amber-400" /> : <Moon size={18} />}
+      {darkMode ? (
+        <Sun size={18} className="text-amber-400 transition-transform duration-300 rotate-0 scale-100" />
+      ) : (
+        <Moon size={18} className="transition-transform duration-300 rotate-0 scale-100" />
+      )}
     </button>
   );
 }

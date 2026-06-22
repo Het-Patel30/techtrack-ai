@@ -19,7 +19,16 @@ router.get('/', auth, async (req, res) => {
 
 // SAVE/UPDATE USER PROFILE
 router.post('/', auth, async (req, res) => {
-  const { personalInfo, qualification, targetJob, technicalSkills } = req.body;
+  const {
+    personalInfo,
+    qualification,
+    targetJob,
+    technicalSkills,
+    workExperience,   // [{ company, role, startDate, endDate, isCurrent, bullets[], rawText }]
+    projects,         // [{ name, techStack[], description, liveUrl, repoUrl }]
+    certifications,   // [{ name, issuer, date }]
+    achievements      // [{ text }]
+  } = req.body;
 
   try {
     const updatedProfile = await db.Profile.findOneAndUpdate(
@@ -29,6 +38,10 @@ router.post('/', auth, async (req, res) => {
         qualification,
         targetJob,
         technicalSkills,
+        workExperience:   workExperience   || [],
+        projects:         projects         || [],
+        certifications:   certifications   || [],
+        achievements:     achievements     || [],
         updatedAt: new Date()
       },
       { new: true, upsert: true }

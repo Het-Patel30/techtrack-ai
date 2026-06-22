@@ -183,4 +183,50 @@ router.post('/submit-answer', auth, async (req, res) => {
   }
 });
 
+// SAVE NOTES FOR A SPECIFIC ROUND
+router.patch('/notes/:roundNum', auth, async (req, res) => {
+  const roundNum = parseInt(req.params.roundNum);
+  const { notes } = req.body;
+  if (isNaN(roundNum) || roundNum < 1 || roundNum > 6) {
+    return res.status(400).json({ message: 'Invalid round number' });
+  }
+  try {
+    const progress = await getOrCreateInterviewProgress(req.user.id);
+    const roundIdx = progress.rounds.findIndex(r => r.roundNumber === roundNum);
+    if (roundIdx === -1) return res.status(404).json({ message: 'Round not found' });
+    progress.rounds[roundIdx].notes = notes || '';
+    const updated = await db.Interview.findOneAndUpdate(
+      { user: req.user.id },
+      { rounds: progress.rounds, updatedAt: new Date() },
+      { new: true }
+    );
+    res.json(updated);
+  } catch (err) {
+    res.status(500).json({ message: 'Server error saving notes', error: err.message });
+  }
+});
+
+// RESET INTERVIEW PROGRESS (restart from scratch)
+router.delete('/reset', auth, async (req, res) => {
+  try {
+    const rounds = ROUND_NAMES.map((name, index) => ({
+      roundNumber: index + 1,
+      roundName:   name,
+      status:      index === 0 ? 'Pending' : 'Locked',
+      studyConcepts: [],
+      questions:     [],
+      resourceLinks: [],
+      notes:         ''
+    }));
+    const updated = await db.Interview.findOneAndUpdate(
+      { user: req.user.id },
+      { currentRound: 1, rounds, updatedAt: new Date() },
+      { new: true, upsert: true }
+    );
+    res.json(updated);
+  } catch (err) {
+    res.status(500).json({ message: 'Server error resetting progress', error: err.message });
+  }
+});
+
 export default router;
