@@ -1,0 +1,101 @@
+### TechTrack AI - REST Client API Tester
+### Install "REST Client" extension (humao.rest-client) to use this file
+### Click "Send Request" above any request to test it
+
+@baseUrl = http://localhost:8080/api
+@token = PASTE_YOUR_JWT_TOKEN_HERE
+
+### ─────────────────────────────────────────
+### AUTH ROUTES
+### ─────────────────────────────────────────
+
+### 1. Signup (Register new user)
+POST {{baseUrl}}/auth/signup
+Content-Type: application/json
+
+{
+  "username": "testuser",
+  "email": "test@example.com",
+  "password": "password123"
+}
+
+###
+
+### 2. Login
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "test@example.com",
+  "password": "password123"
+}
+
+###
+
+### 3. Get current user (requires token)
+GET {{baseUrl}}/auth/me
+Authorization: Bearer {{token}}
+
+###
+
+### ─────────────────────────────────────────
+### PROFILE ROUTES
+### ─────────────────────────────────────────
+
+### 4. Get user profile
+GET {{baseUrl}}/profile
+Authorization: Bearer {{token}}
+
+###
+
+### 5. Update user profile
+PUT {{baseUrl}}/profile
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "username": "updateduser",
+  "email": "updated@example.com"
+}
+
+###
+
+### ─────────────────────────────────────────
+### RESUME ROUTES
+### ─────────────────────────────────────────
+
+### 6. Generate Resume (AI-powered)
+POST {{baseUrl}}/resume/generate
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "jobTitle": "Software Engineer",
+  "skills": ["JavaScript", "React", "Node.js"],
+  "experience": "3 years of full-stack development"
+}
+
+###
+
+### ─────────────────────────────────────────
+### INTERVIEW ROUTES
+### ─────────────────────────────────────────
+
+### 7. Generate Interview Questions
+POST {{baseUrl}}/interview/generate
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "jobTitle": "Frontend Developer",
+  "techStack": ["React", "TypeScript", "CSS"],
+  "difficulty": "medium"
+}
+
+###
+
+### 8. Get interview history
+GET {{baseUrl}}/interview/history
+Authorization: Bearer {{token}}
+
+###

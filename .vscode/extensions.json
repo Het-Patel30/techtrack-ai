@@ -1,0 +1,17 @@
+{
+  "recommendations": [
+    "dbaeumer.vscode-eslint",
+    "esbenp.prettier-vscode",
+    "bradlc.vscode-tailwindcss",
+    "dsznajder.es7-react-js-snippets",
+    "ms-vscode.vscode-js-debug",
+    "ms-edgedevtools.vscode-edge-devtools",
+    "mongodb.mongodb-vscode",
+    "humao.rest-client",
+    "mikestead.dotenv",
+    "christian-kohler.path-intellisense",
+    "formulahendry.auto-rename-tag",
+    "steoates.autoimport",
+    "PKief.material-icon-theme"
+  ]
+}
